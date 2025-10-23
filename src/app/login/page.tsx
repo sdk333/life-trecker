@@ -30,7 +30,7 @@ export default function LoginPage() {
       setIsLoading(false);
     } else {
       // Успешный вход — переходим в дашборд
-      router.push("/dashboard");
+      router.push("/new");
     }
   };
 
