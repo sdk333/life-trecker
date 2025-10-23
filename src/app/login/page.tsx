@@ -42,7 +42,11 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
-            {error && <div className="text-destructive text-sm">{error}</div>}
+            {error && (
+              <div className="text-destructive text-sm">
+                Неверный логин или пароль (либо сервер прилёг)
+              </div>
+            )}
             <div>
               <Input
                 type="email"
