@@ -1,7 +1,7 @@
 // src/app/(tasks)/dashboard/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Task } from "@/lib/types";
@@ -19,12 +19,12 @@ export default function DashboardPage() {
   // Проверка авторизации
   useEffect(() => {
     const checkAuth = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) {
+      const { data } = await supabase.auth.getSession(); // ✅ исправлено: нет деструктуризации в any
+      if (!data.session) {
         router.push("/login");
+        return;
       }
+      setLoading(false);
     };
     checkAuth();
   }, [router]);
@@ -113,34 +113,66 @@ export default function DashboardPage() {
         ) : (
           <div className="space-y-3">
             {tasks.map((task) => (
-              <Card key={task.id} className="p-4">
-                <div className="flex items-start gap-3">
-                  <Checkbox
-                    checked={task.done}
-                    onCheckedChange={() => toggleTask(task.id, task.done)}
-                    className="mt-1"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className={`text-lg ${
-                        task.done ? "line-through text-muted-foreground" : ""
-                      }`}
+              <motion.div
+                key={task.id}
+                whileTap={{
+                  scale: 0.985,
+                  backgroundColor: "hsl(var(--muted))",
+                }}
+                className="rounded-lg overflow-hidden"
+                onContextMenu={(e) => e.preventDefault()}
+              >
+                <Card className="p-4 border-0">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      checked={task.done}
+                      onCheckedChange={() => toggleTask(task.id, task.done)}
+                      className="mt-1"
+                    />
+                    <div
+                      className="flex-1 min-w-0 cursor-pointer select-none"
+                      onTouchStart={(e) => e.preventDefault()}
+                      onPointerDown={(e) => {
+                        const timeout = setTimeout(async () => {
+                          try {
+                            await navigator.clipboard.writeText(task.title);
+                            toast.success("Скопировано!", { duration: 1200 });
+                          } catch {
+                            toast.error("Не удалось скопировать");
+                          }
+                        }, 500);
+
+                        const cleanup = () => {
+                          clearTimeout(timeout);
+                          window.removeEventListener("pointerup", cleanup);
+                          window.removeEventListener("pointercancel", cleanup);
+                        };
+
+                        window.addEventListener("pointerup", cleanup);
+                        window.addEventListener("pointercancel", cleanup);
+                      }}
                     >
-                      {task.title}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {new Date(task.created_at).toLocaleDateString()}
-                    </p>
+                      <p
+                        className={`text-lg ${
+                          task.done ? "line-through text-muted-foreground" : ""
+                        }`}
+                      >
+                        {task.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(task.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => deleteTask(task.id, task.title)}
+                      className="text-destructive hover:text-red-400 transition-colors p-1 rounded"
+                      aria-label="Удалить задачу"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => deleteTask(task.id, task.title)}
-                    className="text-destructive hover:text-red-400 transition-colors p-1 rounded"
-                    aria-label="Удалить задачу"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </Card>
+                </Card>
+              </motion.div>
             ))}
           </div>
         )}
