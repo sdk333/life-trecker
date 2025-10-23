@@ -1,7 +1,7 @@
 // src/app/quick-task/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ export default function QuickTaskPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null); // ← ссылка на input
 
   // Проверяем авторизацию при загрузке
   useEffect(() => {
@@ -21,11 +22,23 @@ export default function QuickTaskPage() {
       } = await supabase.auth.getSession();
       if (!session) {
         router.push("/login");
+        return;
       }
       setIsLoading(false);
     };
     checkAuth();
   }, [router]);
+
+  // Устанавливаем фокус на поле ввода после загрузки
+  useEffect(() => {
+    if (!isLoading) {
+      // Небольшая задержка повышает шансы на появление клавиатуры на iOS (лишним не будет)
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
 
   if (isLoading) {
     return (
@@ -51,20 +64,22 @@ export default function QuickTaskPage() {
 
     setTitle("");
     alert("Задача сохранена!");
+    // После сохранения снова фокусируемся на поле (удобно для быстрого ввода следующей задачи)
+    inputRef.current?.focus();
   };
 
   return (
     <div className="min-h-screen bg-background p-4 flex flex-col">
       <div className="max-w-md mx-auto w-full mt-10">
-        <h1 className="text-xl font-semibold mb-4">Что пришло в голову?</h1>
+        <h1 className="text-xl font-semibold mb-4">Что нужно зафиксировать?</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
-            autoFocus
+            ref={inputRef} // ← привязываем ref
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Например: купить молоко"
             className="text-lg"
             disabled={isSaving}
+            placeholder="Например: купить молоко"
           />
           <div className="flex gap-2">
             <Button type="submit" className="flex-1" disabled={isSaving}>
@@ -76,7 +91,7 @@ export default function QuickTaskPage() {
               className="flex-1"
               onClick={() => router.push("/dashboard")}
             >
-              Отмена
+              В меню
             </Button>
           </div>
         </form>
