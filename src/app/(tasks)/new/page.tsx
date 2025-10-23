@@ -32,14 +32,29 @@ export default function QuickTaskPage() {
   // Устанавливаем фокус на поле ввода после загрузки
   useEffect(() => {
     if (!isLoading) {
-      // Небольшая задержка повышает шансы на появление клавиатуры на iOS (лишним не будет)
       const timer = setTimeout(() => {
-        inputRef.current?.focus();
-      }, 150);
+        if (inputRef.current) {
+          // Прокручиваем к полю, чтобы оно было в центре
+          inputRef.current.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+            inline: "center",
+          });
+
+          // Небольшая пауза после прокрутки
+          setTimeout(() => {
+            inputRef.current?.focus();
+            // Дополнительно: принудительно показываем клавиатуру через click (хак)
+            if (typeof window !== "undefined") {
+              inputRef.current?.click();
+            }
+          }, 100);
+        }
+      }, 300); // 300 мс — даём время анимациям и рендеру
+
       return () => clearTimeout(timer);
     }
   }, [isLoading]);
-
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -65,7 +80,8 @@ export default function QuickTaskPage() {
     setTitle("");
     alert("Задача сохранена!");
     // После сохранения снова фокусируемся на поле (удобно для быстрого ввода следующей задачи)
-    inputRef.current?.focus();
+    // inputRef.current?.focus();
+    router.push("/dashboard");
   };
 
   return (

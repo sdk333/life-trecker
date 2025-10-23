@@ -2,7 +2,7 @@
   "name": "My Life Dashboard",
   "short_name": "LifeDash",
   "description": "Персональный трекер жизни",
-  "start_url": "/",
+  "start_url": "/new",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
