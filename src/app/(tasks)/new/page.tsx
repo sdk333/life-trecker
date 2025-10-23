@@ -1,4 +1,4 @@
-// src/app/quick-task/page.tsx
+// src/app/(tasks)/new/page.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -6,36 +6,42 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Session } from "@supabase/supabase-js";
 
 export default function QuickTaskPage() {
   const [title, setTitle] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const inputRef = useRef<HTMLInputElement>(null); // ← ссылка на input
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Проверяем авторизацию при загрузке
+  // Проверяем авторизацию
   useEffect(() => {
     const checkAuth = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
         router.push("/login");
-        return;
       }
       setIsLoading(false);
     };
     checkAuth();
   }, [router]);
 
-  // Устанавливаем фокус на поле ввода после загрузки
+  // Фокус + открытие клавиатуры после загрузки
   useEffect(() => {
-    if (!isLoading) {
-      // Небольшая задержка повышает шансы на появление клавиатуры на iOS (лишним не будет)
+    if (!isLoading && inputRef.current) {
+      // Небольшая задержка для надёжности в PWA
       const timer = setTimeout(() => {
         inputRef.current?.focus();
-      }, 150);
+        // На некоторых Android-устройствах помогает принудительный вызов
+        if (typeof window !== "undefined" && "scrollIntoView" in window) {
+          inputRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }
+      }, 300);
+
       return () => clearTimeout(timer);
     }
   }, [isLoading]);
@@ -63,8 +69,7 @@ export default function QuickTaskPage() {
     }
 
     setTitle("");
-    alert("Задача сохранена!");
-    // После сохранения снова фокусируемся на поле (удобно для быстрого ввода следующей задачи)
+    // Опционально: снова фокус после сохранения
     inputRef.current?.focus();
   };
 
@@ -74,15 +79,19 @@ export default function QuickTaskPage() {
         <h1 className="text-xl font-semibold mb-4">Что нужно зафиксировать?</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
-            ref={inputRef} // ← привязываем ref
+            ref={inputRef}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="text-lg"
+            className="text-lg py-6 px-4"
             disabled={isSaving}
-            placeholder="Например: купить молоко"
+            // Убираем placeholder — он мешает фокусу на некоторых устройствах
           />
           <div className="flex gap-2">
-            <Button type="submit" className="flex-1" disabled={isSaving}>
+            <Button
+              type="submit"
+              className="flex-1"
+              disabled={isSaving || !title.trim()}
+            >
               {isSaving ? "Сохраняю..." : "Сохранить"}
             </Button>
             <Button
