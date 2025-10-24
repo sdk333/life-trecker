@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
+// Декларация типов для нестандартных свойств
 declare global {
   interface Navigator {
     standalone?: boolean;
@@ -18,7 +19,7 @@ export default function QuickTaskPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const inputRef = useRef<HTMLInputElement>(null); // Добавлено для рефа инпута
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Проверяем авторизацию при загрузке
   useEffect(() => {
@@ -35,37 +36,54 @@ export default function QuickTaskPage() {
     checkAuth();
   }, [router]);
 
-  // Новая логика автофокуса: только на мобильном в PWA-режиме с хаком
+  // Обновлённая логика автофокуса с новыми методами
   useEffect(() => {
     if (!isLoading) {
       const isPWA =
         window.matchMedia("(display-mode: standalone)").matches ||
-        window.navigator.standalone === true; // Теперь без any — используем декларацию выше
-      const isMobile = /Mobi|Android/i.test(navigator.userAgent); // Детекция мобильного
+        window.navigator.standalone === true;
+      const isMobile = /Mobi|Android/i.test(navigator.userAgent);
 
       if (isMobile && isPWA && inputRef.current) {
-        // Хак: программный клик для симуляции взаимодействия, затем фокус
         const focusInput = () => {
-          inputRef.current?.click(); // Симулирует тап (обходит блокировку)
-          setTimeout(() => inputRef.current?.focus(), 50); // Небольшая задержка после клика
+          const input = inputRef.current;
+          if (!input) return;
+
+          // Шаг 1: Прокрутка в вид (хак для viewport)
+          input.scrollIntoView({ behavior: "smooth", block: "center" });
+
+          // Шаг 2: Используем requestAnimationFrame для синхронизации с рендером
+          requestAnimationFrame(() => {
+            // Шаг 3: Программный клик (старый хак) + select вместо focus
+            input.click();
+            setTimeout(() => {
+              input.select(); // Выделяет текст и фокусирует (альтернатива focus)
+            }, 50);
+          });
         };
 
-        // Фокус сразу после загрузки (для start_url)
-        setTimeout(focusInput, 100); // Даём время на рендер
+        // Фокус после полной загрузки страницы (document.readyState)
+        if (document.readyState === "complete") {
+          setTimeout(focusInput, 100);
+        } else {
+          window.addEventListener("load", () => setTimeout(focusInput, 100));
+        }
 
-        // Дополнительно: фокус при активации PWA (из фона или после сворачивания)
+        // Дополнительно: фокус при активации PWA (visibilitychange)
         const handleVisibilityChange = () => {
           if (document.visibilityState === "visible") {
-            setTimeout(focusInput, 200); // Задержка для стабильности
+            setTimeout(focusInput, 200);
           }
         };
         document.addEventListener("visibilitychange", handleVisibilityChange);
 
-        return () =>
+        return () => {
           document.removeEventListener(
             "visibilitychange",
             handleVisibilityChange
           );
+          window.removeEventListener("load", () => {});
+        };
       }
     }
   }, [isLoading]);
@@ -94,8 +112,8 @@ export default function QuickTaskPage() {
 
     setTitle("");
     toast.success("Идея сохранена!");
-    // После сохранения снова фокусируемся (теперь с рефом)
-    setTimeout(() => inputRef.current?.focus(), 100);
+    // После сохранения: фокус с select
+    setTimeout(() => inputRef.current?.select(), 100);
     router.push("/dashboard");
   };
 
@@ -105,12 +123,13 @@ export default function QuickTaskPage() {
         <h1 className="text-xl font-semibold mb-4">Что нужно зафиксировать?</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
-            ref={inputRef} // Добавлено для доступа к DOM-элементу
+            ref={inputRef}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="text-lg"
             disabled={isSaving}
-            // placeholder="Например: купить молоко"
+            placeholder="Например: купить молоко"
+            autoFocus // Добавлено: атрибут autofocus для попытки фокуса
           />
           <div className="flex gap-2">
             <Button type="submit" className="flex-1" disabled={isSaving}>
