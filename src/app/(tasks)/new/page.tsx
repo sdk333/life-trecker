@@ -7,6 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
+declare global {
+  interface Navigator {
+    standalone?: boolean;
+  }
+}
+
 export default function QuickTaskPage() {
   const [title, setTitle] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -34,7 +40,7 @@ export default function QuickTaskPage() {
     if (!isLoading) {
       const isPWA =
         window.matchMedia("(display-mode: standalone)").matches ||
-        (window.navigator as any).standalone === true; // Детекция PWA
+        window.navigator.standalone === true; // Теперь без any — используем декларацию выше
       const isMobile = /Mobi|Android/i.test(navigator.userAgent); // Детекция мобильного
 
       if (isMobile && isPWA && inputRef.current) {
