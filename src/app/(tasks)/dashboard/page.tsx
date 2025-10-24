@@ -20,7 +20,7 @@ export default function DashboardPage() {
   // Проверка авторизации
   useEffect(() => {
     const checkAuth = async () => {
-      const { data } = await supabase.auth.getSession(); // ✅ исправлено: нет деструктуризации в any
+      const { data } = await supabase.auth.getSession();
       if (!data.session) {
         router.push("/login");
         return;

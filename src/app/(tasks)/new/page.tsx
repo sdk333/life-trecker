@@ -1,117 +1,69 @@
-// src/app/quick-task/page.tsx
+// components/SmartAutoFocus.tsx
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useEffect, useRef, useState } from "react";
 
 export default function QuickTaskPage() {
-  const [title, setTitle] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
-  const inputRef = useRef<HTMLInputElement>(null); // ← ссылка на input
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Проверяем авторизацию при загрузке
   useEffect(() => {
-    const checkAuth = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) {
-        router.push("/login");
-        return;
-      }
-      setIsLoading(false);
+    // Определяем мобильное устройство
+    const checkMobile = () => {
+      return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+      );
     };
-    checkAuth();
-  }, [router]);
 
-  // Устанавливаем фокус на поле ввода после загрузки
+    setIsMobile(checkMobile());
+  }, []);
+
   useEffect(() => {
-    if (!isLoading) {
-      const timer = setTimeout(() => {
-        if (inputRef.current) {
-          // Прокручиваем к полю, чтобы оно было в центре
-          inputRef.current.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-            inline: "center",
-          });
+    if (!inputRef.current || !isMobile) return;
 
-          // Небольшая пауза после прокрутки
-          setTimeout(() => {
-            inputRef.current?.focus();
-            // Дополнительно: принудительно показываем клавиатуру через click (хак)
-            if (typeof window !== "undefined") {
-              inputRef.current?.click();
-            }
-          }, 100);
-        }
-      }, 300); // 300 мс — даём время анимациям и рендеру
+    const focusInput = () => {
+      const input = inputRef.current;
+      if (!input) return;
 
-      return () => clearTimeout(timer);
-    }
-  }, [isLoading]);
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Проверка сессии...
-      </div>
-    );
-  }
+      // Пытаемся сфокусироваться
+      input.focus();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
+      // Для iOS иногда нужно дополнительное действие
+      setTimeout(() => {
+        input.focus();
 
-    setIsSaving(true);
-    const { error } = await supabase.from("tasks").insert({ title });
-    setIsSaving(false);
+        // Создаем и диспатчим событие touchstart для iOS
+        const touchEvent = new TouchEvent("touchstart", {
+          bubbles: true,
+          cancelable: true,
+        });
+        input.dispatchEvent(touchEvent);
+      }, 100);
+    };
 
-    if (error) {
-      console.error("Ошибка:", error);
-      alert("Не удалось сохранить задачу: " + error.message);
-      return;
-    }
+    // Фокус при загрузке
+    focusInput();
 
-    setTitle("");
-    alert("Задача сохранена!");
-    // После сохранения снова фокусируемся на поле (удобно для быстрого ввода следующей задачи)
-    // inputRef.current?.focus();
-    router.push("/dashboard");
-  };
+    // Также фокус при клике на страницу (для PWA)
+    const handlePageClick = () => {
+      setTimeout(focusInput, 50);
+    };
+
+    document.addEventListener("click", handlePageClick);
+
+    return () => {
+      document.removeEventListener("click", handlePageClick);
+    };
+  }, [isMobile]);
 
   return (
-    <div className="min-h-screen bg-background p-4 flex flex-col">
-      <div className="max-w-md mx-auto w-full mt-10">
-        <h1 className="text-xl font-semibold mb-4">Что нужно зафиксировать?</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            ref={inputRef} // ← привязываем ref
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="text-lg"
-            disabled={isSaving}
-            // placeholder="Например: купить молоко"
-          />
-          <div className="flex gap-2">
-            <Button type="submit" className="flex-1" disabled={isSaving}>
-              {isSaving ? "Сохраняю..." : "Сохранить"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={() => router.push("/dashboard")}
-            >
-              В меню
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <input
+      ref={inputRef}
+      type="text"
+      inputMode="text" // Указываем тип клавиатуры для мобильных
+      enterKeyHint="done" // Подсказка для кнопки Enter
+      className="w-full p-4 text-base border-2 border-blue-300 rounded-xl focus:outline-none focus:border-blue-500"
+      placeholder="Начните вводить текст..."
+    />
   );
 }
