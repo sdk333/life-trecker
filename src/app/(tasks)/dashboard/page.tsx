@@ -168,7 +168,7 @@ export default function DashboardPage() {
                       }}
                     >
                       <p
-                        className={`text-lg ${
+                        className={`text-lg break-words ${
                           task.done ? "line-through text-muted-foreground" : ""
                         }`}
                       >
