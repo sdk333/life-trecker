@@ -14,6 +14,7 @@ import { toast } from "sonner";
 export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showEmptyState, setShowEmptyState] = useState(false);
   const router = useRouter();
 
   // Проверка авторизации
@@ -33,6 +34,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchTasks = async () => {
       setLoading(true);
+      setShowEmptyState(false);
       const { data, error } = await supabase
         .from("tasks")
         .select("*")
@@ -44,7 +46,12 @@ export default function DashboardPage() {
       } else {
         setTasks(data || []);
       }
-      setLoading(false);
+      setTimeout(() => {
+        setLoading(false);
+        if (!data || data.length === 0) {
+          setShowEmptyState(true);
+        }
+      }, 300);
     };
 
     fetchTasks();
@@ -100,14 +107,22 @@ export default function DashboardPage() {
       {" "}
       {/* отступ снизу под FAB */}
       <div className="max-w-2xl mx-auto px-4 pt-6">
-        <h1 className="text-2xl font-bold mb-6">Мои задачи</h1>
+        <h1 className="text-2xl font-bold mb-6">Мои идеи</h1>
 
         {loading ? (
-          <div className="text-center py-10">Загрузка задач...</div>
-        ) : tasks.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16">
+            <div className="relative">
+              <div className="w-12 h-12 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
+              <div className="absolute inset-0 w-12 h-12 rounded-full border-2 border-primary/30 animate-ping opacity-20"></div>
+            </div>
+            <p className="mt-4 text-muted-foreground text-sm">
+              Загрузка идей...
+            </p>
+          </div>
+        ) : showEmptyState ? (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
-              Нет задач. Добавь первую!
+              Нет идей. Добавь первую!
             </CardContent>
           </Card>
         ) : (

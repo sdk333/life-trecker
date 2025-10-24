@@ -95,7 +95,7 @@ export default function QuickTaskPage() {
             onChange={(e) => setTitle(e.target.value)}
             className="text-lg"
             disabled={isSaving}
-            placeholder="Например: купить молоко"
+            // placeholder="Например: купить молоко"
           />
           <div className="flex gap-2">
             <Button type="submit" className="flex-1" disabled={isSaving}>
