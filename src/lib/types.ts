@@ -1,10 +1,12 @@
-// src/lib/types.ts
 export type Task = {
   id: string;
   title: string;
   done: boolean;
   created_at: string; // ISO string
+  type: TaskType;
 };
+
+export type TaskType = "question" | "lightning" | "cloud";
 
 export type MoodEntry = {
   date: string; // YYYY-MM-DD

@@ -120,7 +120,9 @@ export default function QuickTaskPage() {
   return (
     <div className="min-h-screen bg-background p-4 flex flex-col">
       <div className="max-w-md mx-auto w-full mt-10">
-        <h1 className="text-xl font-semibold mb-4">Что нужно зафиксировать?</h1>
+        <h1 className="text-xl font-semibold mb-4">
+          Какая мысль пришла сегодня?
+        </h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             ref={inputRef}
@@ -128,7 +130,6 @@ export default function QuickTaskPage() {
             onChange={(e) => setTitle(e.target.value)}
             className="text-lg"
             disabled={isSaving}
-            placeholder="Например: купить молоко"
             autoFocus // Добавлено: атрибут autofocus для попытки фокуса
           />
           <div className="flex gap-2">

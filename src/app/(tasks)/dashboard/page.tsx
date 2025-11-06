@@ -1,15 +1,135 @@
 // src/app/(tasks)/dashboard/page.tsx
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Task } from "@/lib/types";
+import { Task, TaskType } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Trash2, Plus } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+
+// Вспомогательная функция для эмодзи
+const getEmoji = (type: TaskType) => {
+  switch (type) {
+    case "lightning":
+      return "⚡";
+    case "cloud":
+      return "☁️";
+    case "question":
+      return "❓";
+    default:
+      return "❓";
+  }
+};
+
+// Компонент выбора типа задачи
+const TypeSelector = ({
+  task,
+  onUpdateType,
+}: {
+  task: { id: string; type: TaskType };
+  onUpdateType: (id: string, newType: TaskType) => void;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const ALL_TYPES: TaskType[] = ["lightning", "cloud", "question"];
+
+  const handleEmojiClick = () => {
+    setIsOpen((prev) => !prev);
+  };
+
+  const handleOptionSelect = (newType: TaskType) => {
+    if (newType !== task.type) {
+      onUpdateType(task.id, newType);
+    }
+    setIsOpen(false);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside, {
+      passive: true,
+    });
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, []);
+
+  const renderButton = (type: TaskType) => {
+    const isActive = type === task.type;
+    const emoji = getEmoji(type);
+    const labels: Record<TaskType, string> = {
+      lightning: "Срочное — молния",
+      cloud: "Идея — облако",
+      question: "Неотсортировано — вопрос",
+    };
+
+    return (
+      <button
+        key={type}
+        onClick={() => handleOptionSelect(type)}
+        className={`text-xl w-12 h-12 flex items-center justify-center rounded-full border shadow-md transition-all touch-manipulation ${
+          isActive
+            ? "bg-primary/10 scale-110 shadow-lg"
+            : "bg-background hover:bg-muted active:scale-95"
+        }`}
+        aria-label={labels[type]}
+      >
+        {emoji}
+      </button>
+    );
+  };
+
+  return (
+    <div className="relative flex items-center justify-center" ref={menuRef}>
+      {!isOpen && (
+        <button
+          onClick={handleEmojiClick}
+          className="text-xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted active:bg-muted/70 transition-colors touch-manipulation"
+          aria-label={`Тип задачи: ${task.type}. Нажмите, чтобы изменить.`}
+        >
+          {getEmoji(task.type)}
+        </button>
+      )}
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            className="absolute mb-13 ml-7 left-1/2 transform -translate-x-1/2 z-[60]"
+          >
+            <div className="flex flex-col items-center">
+              {/* Верх: первая альтернатива */}
+              {renderButton(ALL_TYPES.filter((t) => t !== task.type)[0])}
+
+              {/* Низ: текущий (слева) + вторая альтернатива (справа) */}
+              <div className="flex gap-2">
+                {renderButton(task.type)}
+                {renderButton(ALL_TYPES.filter((t) => t !== task.type)[1])}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {isOpen && <div className="w-8 h-8" />}
+    </div>
+  );
+};
 
 export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -70,24 +190,7 @@ export default function DashboardPage() {
     };
   }, []);
 
-  const toggleTask = async (id: string, currentDone: boolean) => {
-    const { error } = await supabase
-      .from("tasks")
-      .update({ done: !currentDone })
-      .eq("id", id);
-
-    if (error) {
-      console.error("Ошибка обновления:", error);
-      toast.error("Не удалось обновить задачу");
-    } else {
-      setTasks((prev) =>
-        prev.map((task) =>
-          task.id === id ? { ...task, done: !currentDone } : task
-        )
-      );
-    }
-  };
-
+  // Удаление задачи
   const deleteTask = async (id: string, title: string) => {
     const { error } = await supabase.from("tasks").delete().eq("id", id);
 
@@ -102,10 +205,25 @@ export default function DashboardPage() {
     }
   };
 
+  // Обновление типа задачи
+  const updateTaskType = async (id: string, newType: TaskType) => {
+    const { error } = await supabase
+      .from("tasks")
+      .update({ type: newType })
+      .eq("id", id);
+
+    if (error) {
+      console.error("Ошибка обновления типа:", error);
+      toast.error("Не удалось изменить тип задачи");
+    } else {
+      setTasks((prev) =>
+        prev.map((task) => (task.id === id ? { ...task, type: newType } : task))
+      );
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background pb-24">
-      {" "}
-      {/* отступ снизу под FAB */}
       <div className="max-w-2xl mx-auto px-4 pt-6">
         <h1 className="text-2xl font-bold mb-6">Мои идеи</h1>
 
@@ -134,16 +252,12 @@ export default function DashboardPage() {
                   scale: 0.985,
                   backgroundColor: "hsl(var(--muted))",
                 }}
-                className="rounded-lg overflow-hidden"
+                className="rounded-lg"
                 onContextMenu={(e) => e.preventDefault()}
               >
                 <Card className="p-4 border-0">
                   <div className="flex items-start gap-3">
-                    <Checkbox
-                      checked={task.done}
-                      onCheckedChange={() => toggleTask(task.id, task.done)}
-                      className="mt-1"
-                    />
+                    <TypeSelector task={task} onUpdateType={updateTaskType} />
                     <div
                       className="flex-1 min-w-0 cursor-pointer select-none"
                       onTouchStart={(e) => e.preventDefault()}
@@ -192,7 +306,8 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
-      {/* Стильная FAB-кнопка внизу */}
+
+      {/* FAB-кнопка */}
       <motion.button
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
